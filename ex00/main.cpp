@@ -1,164 +1,195 @@
 //
 // Created by Yash on 26/9/24.
 //
-#include "Data.hpp"
 
-void checkNum(const char c) {
-	if(c < '0' || c > '9') {
-		throw std::runtime_error("Invalid number");
-	}
-}
+#include <ctime>
+#include <cstdio>
+#include <cstdlib>
+#include <cctype>
+#include <cmath>
+#include <map>
+#include <string>
+#include <iostream>
+#include <fstream>
+#include <stdexcept>
+#include <climits>
 
-void checkValue(const std::string value) {
-	if(value[0] != '+' && value[0] != '-') {
-		throw std::runtime_error("Invalid value format");
-	}
-	int numValue = std::atoi(value.substr(1).c_str());
-	if(numValue < 0 ) {
-		throw std::runtime_error("not a positive number");
-	}
-	else if (numValue > 1000) {
-		throw std::runtime_error("too large a number.");
-	}
-}
+float my_stof(std::string str) {
+	float result = 0;
+	int i = 0;
+	int decimal = 0;
+	int decimal_count = 0;
 
-void checkDate(const std::string line) {
-	for(int i = 0; i <= 3; i++)
-		checkNum(line[i]);
-	if(line[4] != '-')
-		throw std::runtime_error("Invalid date format");
-	for(int i = 5; i <= 6; i++)
-		checkNum(line[i]);
-	if(line[7] != '-')
-		throw std::runtime_error("Invalid date format");
-	for(int i = 8; i <= 9; i++)
-		checkNum(line[i]);
-	checkValue(line.substr(13));
-}
-
-
-double my_atof(const char* str) {
-	if (!str) return 0.0; // Null check
-
-	double result = 0.0;
-	double fraction = 0.0;
-	int divisor = 1;
-	bool is_fraction = false;
-	bool has_exponent = false;
-	int exponent_sign = 1;
-	int exponent_value = 0;
-
-
-	while (*str && isdigit(*str)) {
-		result = result * 10 + (*str - '0');
-		++str;
-	}
-
-	if (*str == '.') {
-		++str;
-		is_fraction = true;
-		while (*str && isdigit(*str)) {
-			fraction = fraction * 10 + (*str - '0');
-			divisor *= 10;
-			++str;
+	while(str[i] != '\0') {
+		if(str[i] == '.') {
+			decimal = 1;
+			i++;
+			continue;
 		}
-	}
-
-	if (is_fraction) {
-		result += fraction / divisor;
-	}
-
-	if (*str == 'e' || *str == 'E') {
-		has_exponent = true;
-		++str;
-
-		if (*str == '-') {
-			exponent_sign = -1;
-			++str;
-		} else if (*str == '+') {
-			++str;
-		}
-		while (*str && isdigit(*str)) {
-			exponent_value = exponent_value * 10 + (*str - '0');
-			++str;
-		}
-	}
-
-	if (has_exponent) {
-		double power = 1.0;
-		for (int i = 0; i < exponent_value; ++i) {
-			power *= 10;
-		}
-		if (exponent_sign < 0) {
-			result /= power;
+		if(decimal) {
+			result = result + (str[i] - '0') * pow(10, -decimal_count);
+			decimal_count++;
 		} else {
-			result *= power;
+			result = result * 10 + (str[i] - '0');
 		}
+		i++;
 	}
-
 	return result;
 }
 
-float findNearestValue(const std::map<Data, float>& dateMap, const Data& target) {
-	std::map<Data, float>::const_iterator it = dateMap.lower_bound(target);  // Finds the first element not less than target
-
-	// If exact date found and value is non-zero
-	if (it != dateMap.end() && it->first.getYear() == target.getYear() && it->first.getMonth() == target.getMonth() && it->first.getDay() == target.getDay() && it->second != 0.0f) {
-		return it->second;
+void parseLine(std::string &line, std::map<std::string, float> &dataMap) {
+	if(line != "date,exchange_rate") {
+		std::string date = line.substr(0, line.find(','));
+		std::string exchange_rate = line.substr(line.find(',') + 1);
+		dataMap[date] = my_stof(exchange_rate);
 	}
-
-	// Iterate backwards if we don't find a valid date or the value is zero
-	while (it != dateMap.begin()) {
-		--it;
-		if (it->second != 0.0f) {
-			return it->second;
-		}
-	}
-
-	// If no valid date found, return -1.0f (or handle accordingly)
-	return -1.0f;
 }
 
-void parseFile(const std::string filename, std::map<Data, float> dateMap) {
-	std::ifstream file(filename);
-	if (!file.is_open()) {
-		throw std::runtime_error("Error opening file");
-	}
+void parseData(std::ifstream &data_file, std::map<std::string, float> &dataMap) {
 	std::string line;
-	std::getline(file, line);
-	if (line != "date | value") {
-		throw std::runtime_error("Error: Invalid file format");
+
+	std::getline(data_file, line);
+	while(std::getline(data_file, line)) {
+		parseLine(line, dataMap);
 	}
-	while(std::getline(file, line)) {
-		checkDate(line);
-		Data data(std::atoi(line.substr(0, 4).c_str()), std::atoi(line.substr(5, 2).c_str()), std::atoi(line.substr(8, 2).c_str()));
-		float value = my_atof(line.substr(13).c_str());
-		float nearestValue = findNearestValue(dateMap, data) * value;
-		std::cout << data << "=> " << value << " = " << nearestValue << std::endl;
-	}
+}
+
+bool isLeapYear(int year) {
+    return (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+}
+
+bool isValidDate(const std::string& date) {
+    if (date.length() != 10) return false;
+    if (date[4] != '-' || date[7] != '-') return false;
+
+    for (int i = 0; i < 10; ++i) {
+        if (i == 4 || i == 7) continue;
+        if (!isdigit(date[i])) return false;
+    }
+
+    int year = atoi(date.substr(0, 4).c_str());
+    int month = atoi(date.substr(5, 2).c_str());
+    int day = atoi(date.substr(8, 2).c_str());
+
+    if (year < 1900 || month < 1 || month > 12 || day < 1) return false;
+
+    int daysInMonth[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    if (isLeapYear(year)) daysInMonth[1] = 29;
+
+    return day <= daysInMonth[month - 1];
+}
+
+void trim(std::string& str) {
+    size_t first = str.find_first_not_of(" \t");
+    size_t last = str.find_last_not_of(" \t");
+    if (first != std::string::npos && last != std::string::npos)
+        str = str.substr(first, last - first + 1);
+    else
+        str.clear();
+}
+
+void checkInput(std::string& line, std::map<std::string, float>& inputMap) {
+    if (line != "date | value") {
+        size_t delimiterPos = line.find('|');
+        if (delimiterPos == std::string::npos) {
+            throw std::invalid_argument("Error: Invalid input format");
+        }
+
+        std::string date = line.substr(0, delimiterPos);
+        std::string value = line.substr(delimiterPos + 1);
+        
+        trim(date);
+        trim(value);
+
+        if (date.empty() || value.empty()) {
+            throw std::invalid_argument("Error: Invalid input file");
+        }
+
+        if (!isValidDate(date)) {
+            throw std::invalid_argument("Error: Invalid date format or date. Use YYYY-MM-DD.");
+        }
+
+        float floatValue = my_stof(value);
+        if (floatValue < 0) {
+            throw std::invalid_argument("Error: not a positive number.");
+        } else if (floatValue > 1000) {
+            throw std::invalid_argument("Error: too large a number.");
+        }
+		inputMap.insert(std::pair<std::string, float>(date, floatValue));
+    }
+}
+
+std::string findClosestDate(const std::string& targetDate, const std::map<std::string, float>& dataMap) {
+    std::string closestDate;
+    int smallestDiff = INT_MAX;
+
+    for (std::map<std::string, float>::const_iterator it = dataMap.begin(); it != dataMap.end(); ++it) {
+        int yearDiff = abs(atoi(targetDate.substr(0, 4).c_str()) - atoi(it->first.substr(0, 4).c_str()));
+        int monthDiff = abs(atoi(targetDate.substr(5, 2).c_str()) - atoi(it->first.substr(5, 2).c_str()));
+        int dayDiff = abs(atoi(targetDate.substr(8, 2).c_str()) - atoi(it->first.substr(8, 2).c_str()));
+        
+        int totalDiff = yearDiff * 365 + monthDiff * 30 + dayDiff;
+        
+        if (totalDiff < smallestDiff) {
+            smallestDiff = totalDiff;
+            closestDate = it->first;
+        }
+    }
+
+    return closestDate;
+}
+
+void processAndPrintDates(const std::map<std::string, float>& inputMap, const std::map<std::string, float>& dataMap) {
+    for (std::map<std::string, float>::const_iterator it = inputMap.begin(); it != inputMap.end(); ++it) {
+        std::string date = it->first;
+        float value = it->second;
+
+        std::cout << date << " | " << value << " => ";
+
+        std::map<std::string, float>::const_iterator dataIt = dataMap.find(date);
+        if (dataIt == dataMap.end()) {
+            std::string closestDate = findClosestDate(date, dataMap);
+            dataIt = dataMap.find(closestDate);
+            if (dataIt != dataMap.end()) {
+                std::cout << closestDate << " = ";
+            }
+        }
+
+        if (dataIt != dataMap.end()) {
+            float exchangeRate = dataIt->second;
+            float result = value * exchangeRate;
+            std::cout << result << std::endl;
+        } else {
+            std::cout << "Error: date not found." << std::endl;
+        }
+    }
 }
 
 int main(int argc, char **argv) {
-	if(argc != 2) {
-		std::cout << "Error: Invalid number of arguments" << std::endl;
-		return 0;
-	}
-	std::map<Data, float> dateMap;
-	std::ifstream data_file("data.csv");
-	std::string line;
+    if(argc != 2) {
+        std::cout << "Error: Invalid number of arguments" << std::endl;
+        return 1;
+    }
+    std::map<std::string, float> dataMap;
+    std::ifstream data_file("data.csv");
+    
+    parseData(data_file, dataMap);
 
-	while(std::getline(data_file, line)) {
-		if (line != "date,exchange_rate") {
-			Data data(std::atoi(line.substr(0, 4).c_str()), std::atoi(line.substr(5, 2).c_str()), std::atoi(line.substr(8, 2).c_str()));
-			float value = my_atof(line.substr(11).c_str());
-			dateMap[data] = value;
-		}
-	}
-	try {
-		parseFile(argv[1] , dateMap);
-	}
-	catch (std::exception &e) {
-		std::cout << "Error: " << e.what() << std::endl;
-		return 1;
-	}
+    std::map<std::string, float> inputMap;
+    std::ifstream input_file(argv[1]);
+
+    std::string line;
+    std::getline(input_file, line); // Skip header line
+
+    while(std::getline(input_file, line)) {
+        try {
+            checkInput(line, inputMap);
+        } catch(const std::exception &e) {
+            std::cout << line << " => " << e.what() << std::endl;
+        }
+    }
+
+    processAndPrintDates(inputMap, dataMap);
+
+    return 0;
 }
