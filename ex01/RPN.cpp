@@ -42,6 +42,26 @@ int RPN::ft_stoi(const std::string &str) {
 }
 
 void RPN::parse(std::string str) {
+	std::string::iterator it = str.begin();
+    while (it != str.end()) {
+        char c = *it;
+        if (c == ' ') {
+            ++it;
+            continue;
+        }
+        if ((c >= '0' && c <= '9') || c == '+' || c == '-' || c == '*' || c == '/') {
+            if (c >= '0' && c <= '9') {
+                std::string::iterator next = it + 1;
+                if (next != str.end() && *next != ' ') {
+                    throw std::runtime_error("Invalid input: multi-digit numbers are not allowed");
+                }
+            }
+            ++it;
+        } else {
+            throw std::runtime_error("Invalid character in input string");
+        }
+    }
+
 	std::string token;
 	std::istringstream iss;
 	iss.str(str);
@@ -60,9 +80,6 @@ void RPN::parse(std::string str) {
 			_stack.pop();
 			if (a == 0 && token == "/") {
 				throw std::invalid_argument("Division by zero");
-			}
-			if ((a > 9 || b > 9) || (a < 0 || b < 0)) {
-				throw std::out_of_range("ft_stoi: Out of range");
 			}
 			if (token == "+") {
 				_stack.push(b + a);

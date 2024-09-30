@@ -8,18 +8,15 @@ float BitcoinExchange::my_stof(const std::string& str) {
         bool decimal_point = false;
         
         std::string::const_iterator it = str.begin();
-        
-        // Handle negative numbers
+
         if (*it == '-') {
             negative = true;
             ++it;
         }
         
-        // Process each character
         for (; it != str.end(); ++it) {
             if (*it == '.') {
                 if (decimal_point) {
-                    // Multiple decimal points are invalid
                     throw std::runtime_error("Invalid float format");
                 }
                 decimal_point = true;
@@ -31,7 +28,6 @@ float BitcoinExchange::my_stof(const std::string& str) {
                     result = result * 10.0f + (*it - '0');
                 }
             } else {
-                // Invalid character
                 throw std::runtime_error("Invalid float format");
             }
         }
@@ -147,7 +143,6 @@ std::string BitcoinExchange::findClosestDate(const std::string& targetDate) cons
     }
     
     closestDate = it->first;
-    std::cout << closestDate << std::endl;
     return closestDate;
 }
 
